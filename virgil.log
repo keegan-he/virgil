@@ -1,0 +1,19 @@
+Starting Virgil...
+
+Agent: Virgil
+Skills: file-read, file-write, file-search, file-list, web-fetch, system-info, process-list, shell-exec, disk-usage
+
+── Health checks ──
+Ollama: OK (26ms) model=qwen2.5-coder:1.5b loaded=true
+Claude: OK
+Heartbeat: monitoring every 30s
+Discord: logged in as Virgil#0165
+Discord: slash commands registered
+
+── Running ──
+Channels active. Console input also available. Ctrl+C to quit.
+
+you>   [route] → claude (1.00) Classification timed out — defaulting to Claude
+
+Shutting down...
+Discord: disconnected

@@ -1,0 +1,76 @@
+agent:
+  name: Virgil
+  soul: ./config/SOUL.md
+
+ollama:
+  host: http://localhost:11434
+  model: qwen2.5-coder:1.5b
+  timeout: 30000
+
+claude:
+  max_turns: 3
+  permission_mode: acceptEdits
+  allowed_tools:
+    - Read
+    - Write
+    - Edit
+    - Bash
+    - WebSearch
+
+channels:
+  discord:
+    enabled: true
+    token: ${DISCORD_BOT_TOKEN}
+    allowed_channels: []
+    command_prefix: /
+
+heartbeat:
+  interval_ms: 30000
+  timeout_ms: 5000
+
+memory:
+  database: ./data/virgil.db
+  max_context_messages: 30
+  compaction_threshold: 40
+
+monitors:
+  spotify:
+    enabled: true
+    artist_id: "0WfLdHPmUE4Kl3iftC8U2y"
+    interval_ms: 3600000            # 1 hour
+  tracklists:
+    enabled: true
+    artist_url: "https://www.1001tracklists.com/dj/verbala/index.html"
+    rate_limit_ms: 5000
+    interval_ms: 21600000           # 6 hours
+  envoy_jobs:
+    enabled: true
+    check_interval_minutes: 120     # every 2 hours
+    keywords:
+      - "AI"
+      - "artificial intelligence"
+      - "machine learning"
+      - "ML"
+      - "LLM"
+      - "NLP"
+      - "GPT"
+      - "generative"
+      - "deep learning"
+      - "data science"
+      - "computer vision"
+  notifications:
+    # No target_user_id or target_channel_id needed!
+    # Auto-detects from the first DM you send me on Discord.
+    rate_limit_ms: 60000            # 1 min between notifications
+    follower_milestone_step: 1000   # Notify every 1k new followers
+    popularity_milestone_step: 5    # Notify on 5-point popularity change
+  briefing:
+    enabled: true
+    hour: 8                         # 8 AM local time
+    timezone: America/Los_Angeles   # Pacific Time
+    weather:
+      enabled: true
+      location: "Dogpatch,San Francisco"
+      units: imperial
+    github:
+      enabled: true                 # Uses gh CLI — no token needed
