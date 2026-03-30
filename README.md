@@ -120,6 +120,28 @@ Virgil takes a different bet:
 
 **A soul, not just a system prompt.** `config/SOUL.md` defines Virgil's identity, personality, and rules as structured markdown — parsed into discrete sections and injected into backend system prompts. Change who Virgil *is* by editing a markdown file. The config loader handles heading hierarchy, bullet extraction, and section-level injection. Your agent, your personality.
 
+### Why the Claude Agent SDK (Python) was the reference architecture
+
+Virgil is written in TypeScript, but its Claude backend (`src/backends/claude.ts`) is modeled directly after the **SubprocessCLITransport** pattern from the [Claude Agent SDK for Python](https://docs.anthropic.com/en/docs/agents/agent-sdk). This was a deliberate choice, and it's worth explaining why.
+
+There are three ways to integrate Claude into an agent:
+
+**1. Direct API calls (Anthropic SDK).** You call `messages.create()`, get a response, check if it wants to use tools, execute those tools yourself, feed results back, and loop until done. You own the tool loop. You own context management. You own session state. You own token counting. For a personal agent that needs to handle arbitrary multi-turn conversations with tool use, this is a lot of undifferentiated heavy lifting — and every bug in your tool loop is a bug in your agent.
+
+**2. The Claude Agent SDK.** Anthropic's official agent framework. Instead of calling the API directly, the SDK spawns `claude` as a subprocess — the same CLI that powers Claude Code. The subprocess runs the full agent loop internally: tool execution, context management, permission controls, prompt caching, cost tracking, and compaction. Your code just reads structured JSON messages from stdout. The agent loop is battle-tested across millions of Claude Code sessions. You don't reimplement it — you consume it.
+
+**3. Virgil's approach — the SDK pattern, reimplemented from scratch in TypeScript.** Virgil spawns the Claude CLI as a subprocess with `--output-format stream-json`, reads NDJSON from stdout, and parses typed message objects (`assistant`, `result`, `system`, `error`). Same architecture as the Python SDK's SubprocessCLITransport. Same benefits. Zero Python dependency.
+
+Why not just use the Python SDK directly? Three reasons:
+
+**The rest of the stack is TypeScript.** The gateway, router, session manager, skills system, monitors, Discord integration — all TypeScript. Introducing a Python subprocess to manage a CLI subprocess would add a layer of indirection for no architectural benefit. The SubprocessCLITransport pattern is simple enough to reimplement in ~200 lines of TypeScript.
+
+**The Python SDK proved the pattern works.** The SDK's design validated that subprocess-based agent integration is production-viable. The agent loop lives in the CLI, not in your code. You get automatic tool execution, context compaction, prompt caching, and cost tracking — all managed by the subprocess. Virgil didn't need to prove this architecture from scratch — the Python SDK already did. It just needed to port the integration layer.
+
+**Subprocess isolation is the right security boundary.** This is the key insight from the Python SDK that carries directly into Virgil. The Claude subprocess runs with `cwd` set to `$HOME` — not the Virgil project directory. The agent can't read its own source code, can't modify its own config, can't touch `.env`. Active processes are tracked in a `Set<ChildProcess>` and killed on shutdown — no orphans, no zombies. The subprocess pattern gives you process-level isolation for free, without Docker, without containers, without sandboxes. The Python SDK chose this pattern for the same reason: it's the simplest way to run an agent safely.
+
+The result: Virgil's Claude backend is 308 lines of TypeScript that gives you everything the Python SDK provides — streaming output, structured message parsing, subprocess lifecycle management, cost/duration metadata, health checks — in the same language as the rest of the project, with no additional runtime dependencies.
+
 ---
 
 ## Architecture deep dive
