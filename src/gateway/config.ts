@@ -63,8 +63,12 @@ export interface TracklistsMonitorConfig {
   interval_ms: number;
 }
 
-export interface EnvoyJobsMonitorConfig {
+export interface JobsMonitorConfig {
   enabled: boolean;
+  /** Human-readable label for this monitor (used in logs and notifications) */
+  name: string;
+  /** URL of the careers/jobs page to scrape */
+  jobs_url: string;
   check_interval_minutes: number;
   keywords: string[];
 }
@@ -98,7 +102,7 @@ export interface BriefingConfig {
 export interface MonitorsConfig {
   spotify: SpotifyMonitorConfig;
   tracklists: TracklistsMonitorConfig;
-  envoy_jobs?: EnvoyJobsMonitorConfig;
+  jobs?: JobsMonitorConfig;
   notifications: MonitorNotificationConfig;
   briefing?: BriefingConfig;
 }

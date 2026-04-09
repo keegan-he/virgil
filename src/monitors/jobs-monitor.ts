@@ -1,52 +1,70 @@
 /**
- * Envoy careers page scraper for AI-related job listings.
+ * Generic careers page scraper for keyword-matched job listings.
  *
- * Fetches the public Envoy jobs page and parses it for job listings
- * matching configurable AI/ML keywords. No API key needed — scrapes
+ * Fetches a public jobs/careers page and parses it for job listings
+ * matching configurable keywords. No API key needed — scrapes
  * the public HTML page directly.
+ *
+ * Works with any company's careers page that uses standard HTML patterns
+ * or JSON-LD structured data (schema.org JobPosting).
  *
  * Rate-limited to avoid being blocked.
  */
 
 // ── Types ───────────────────────────────────────────────────────
 
-export interface EnvoyJob {
+export interface JobListing {
   title: string;
   url: string;
   department: string;
   location: string;
 }
 
-export interface EnvoyJobsConfig {
+export interface JobsMonitorConfig {
   enabled: boolean;
+  /** Human-readable label for this monitor (used in logs and notifications) */
+  name: string;
+  /** URL of the careers/jobs page to scrape */
+  jobs_url: string;
   check_interval_minutes: number;
   keywords: string[];
 }
 
 // ── Constants ───────────────────────────────────────────────────
 
-const ENVOY_JOBS_URL = 'https://envoy.com/jobs';
 const FETCH_TIMEOUT_MS = 15_000;
 const USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 // ── Scraper ─────────────────────────────────────────────────────
 
-export class EnvoyJobsScraper {
+export class JobsScraper {
   private keywords: string[];
+  private jobsUrl: string;
+  private baseUrl: string;
+  private name: string;
 
-  constructor(config: EnvoyJobsConfig) {
-    // Store lowercased keywords for case-insensitive matching
+  constructor(config: JobsMonitorConfig) {
     this.keywords = config.keywords.map((kw) => kw.toLowerCase());
+    this.jobsUrl = config.jobs_url;
+    this.name = config.name;
+
+    // Derive base URL for resolving relative links
+    try {
+      const parsed = new URL(config.jobs_url);
+      this.baseUrl = `${parsed.protocol}//${parsed.host}`;
+    } catch {
+      this.baseUrl = '';
+    }
   }
 
   /**
-   * Fetches the Envoy jobs page and returns all AI-related listings.
+   * Fetches the jobs page and returns all keyword-matched listings.
    */
-  async fetchAIJobs(): Promise<EnvoyJob[]> {
-    const html = await this.fetchPage(ENVOY_JOBS_URL);
+  async fetchMatchingJobs(): Promise<JobListing[]> {
+    const html = await this.fetchPage(this.jobsUrl);
     const allJobs = this.parseJobsPage(html);
-    return this.filterAIJobs(allJobs);
+    return this.filterByKeywords(allJobs);
   }
 
   // ── Internal ────────────────────────────────────────────────
@@ -67,7 +85,7 @@ export class EnvoyJobsScraper {
 
     if (!response.ok) {
       throw new Error(
-        `Envoy jobs fetch failed (${response.status}): ${response.statusText}`,
+        `${this.name} jobs fetch failed (${response.status}): ${response.statusText}`,
       );
     }
 
@@ -75,14 +93,17 @@ export class EnvoyJobsScraper {
   }
 
   /**
-   * Parses the Envoy jobs page HTML and extracts job listings.
+   * Parses a jobs page HTML and extracts job listings.
    *
-   * Envoy's jobs page typically lists positions in structured HTML
-   * with links to individual job postings. This parser is intentionally
-   * defensive — HTML scraping is fragile and the page layout may change.
+   * Uses three strategies in order:
+   * 1. JSON-LD structured data (schema.org JobPosting)
+   * 2. Common job link patterns (/jobs/, /careers/, /positions/)
+   * 3. Broad CSS class-based block detection
+   *
+   * Intentionally defensive — HTML scraping is fragile.
    */
-  private parseJobsPage(html: string): EnvoyJob[] {
-    const jobs: EnvoyJob[] = [];
+  private parseJobsPage(html: string): JobListing[] {
+    const jobs: JobListing[] = [];
 
     try {
       // Strategy 1: Look for JSON-LD structured data
@@ -104,9 +125,8 @@ export class EnvoyJobsScraper {
       if (jobs.length > 0) return jobs;
 
       // Strategy 2: Look for common job listing HTML patterns
-      // Pattern: links to job detail pages, often under /jobs/ paths
       const jobLinkPattern =
-        /<a[^>]*href=["']((?:https?:\/\/[^"']*envoy\.com)?\/(?:jobs|careers|positions)\/[^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+        /<a[^>]*href=["']((?:https?:\/\/[^"']*)?\/(?:jobs|careers|positions|openings)\/[^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi;
       let linkMatch: RegExpExecArray | null;
       const seenUrls = new Set<string>();
 
@@ -119,7 +139,7 @@ export class EnvoyJobsScraper {
 
         // Make relative URLs absolute
         if (url.startsWith('/')) {
-          url = `https://envoy.com${url}`;
+          url = `${this.baseUrl}${url}`;
         }
 
         // Deduplicate by URL
@@ -157,7 +177,7 @@ export class EnvoyJobsScraper {
         if (!title || title.length < 3) continue;
 
         if (url.startsWith('/')) {
-          url = `https://envoy.com${url}`;
+          url = `${this.baseUrl}${url}`;
         }
 
         if (seenUrls.has(url)) continue;
@@ -185,7 +205,7 @@ export class EnvoyJobsScraper {
         });
       }
     } catch (err) {
-      console.error('  [envoy-jobs] Parse error:', err);
+      console.error(`  [jobs-monitor] ${this.name} parse error:`, err);
     }
 
     return jobs;
@@ -194,8 +214,8 @@ export class EnvoyJobsScraper {
   /**
    * Extracts job listings from JSON-LD structured data.
    */
-  private extractFromJsonLd(data: unknown): EnvoyJob[] {
-    const jobs: EnvoyJob[] = [];
+  private extractFromJsonLd(data: unknown): JobListing[] {
+    const jobs: JobListing[] = [];
 
     if (!data || typeof data !== 'object') return jobs;
 
@@ -341,9 +361,9 @@ export class EnvoyJobsScraper {
   }
 
   /**
-   * Filters jobs by AI-related keywords, matching against title and department.
+   * Filters jobs by configured keywords, matching against title and department.
    */
-  private filterAIJobs(jobs: EnvoyJob[]): EnvoyJob[] {
+  private filterByKeywords(jobs: JobListing[]): JobListing[] {
     return jobs.filter((job) => {
       const searchText =
         `${job.title} ${job.department}`.toLowerCase();

@@ -94,7 +94,7 @@ const SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_briefings_date
     ON daily_briefings(date_key);
 
-  CREATE TABLE IF NOT EXISTS envoy_jobs (
+  CREATE TABLE IF NOT EXISTS monitored_jobs (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     title       TEXT NOT NULL,
     url         TEXT NOT NULL UNIQUE,
@@ -104,8 +104,8 @@ const SCHEMA = `
     notified    INTEGER NOT NULL DEFAULT 0
   );
 
-  CREATE INDEX IF NOT EXISTS idx_envoy_jobs_url
-    ON envoy_jobs(url);
+  CREATE INDEX IF NOT EXISTS idx_monitored_jobs_url
+    ON monitored_jobs(url);
 `;
 
 // ── Store class ─────────────────────────────────────────────────
@@ -478,21 +478,21 @@ export class MemoryStore {
     };
   }
 
-  // ── Envoy Jobs ──────────────────────────────────────────────
+  // ── Monitored Jobs ─────────────────────────────────────────
 
   /**
-   * Returns all known Envoy job URLs (for deduplication).
+   * Returns all known monitored job URLs (for deduplication).
    */
-  getKnownEnvoyJobs(): EnvoyJobRow[] {
+  getKnownJobs(): JobRow[] {
     return this.db
-      .prepare('SELECT * FROM envoy_jobs ORDER BY first_seen DESC')
-      .all() as EnvoyJobRow[];
+      .prepare('SELECT * FROM monitored_jobs ORDER BY first_seen DESC')
+      .all() as JobRow[];
   }
 
   /**
-   * Adds a new Envoy job listing. Ignores duplicates by URL.
+   * Adds a new job listing. Ignores duplicates by URL.
    */
-  addEnvoyJob(job: {
+  addJob(job: {
     title: string;
     url: string;
     department: string;
@@ -500,18 +500,18 @@ export class MemoryStore {
   }): void {
     this.db
       .prepare(
-        `INSERT OR IGNORE INTO envoy_jobs (title, url, department, location)
+        `INSERT OR IGNORE INTO monitored_jobs (title, url, department, location)
          VALUES (?, ?, ?, ?)`,
       )
       .run(job.title, job.url, job.department, job.location);
   }
 
   /**
-   * Marks an Envoy job as having been notified about.
+   * Marks a job as having been notified about.
    */
-  markEnvoyJobNotified(id: number): void {
+  markJobNotified(id: number): void {
     this.db
-      .prepare('UPDATE envoy_jobs SET notified = 1 WHERE id = ?')
+      .prepare('UPDATE monitored_jobs SET notified = 1 WHERE id = ?')
       .run(id);
   }
 
@@ -601,7 +601,7 @@ export interface DJSupportRow {
   spotted_at: string;
 }
 
-export interface EnvoyJobRow {
+export interface JobRow {
   id: number;
   title: string;
   url: string;

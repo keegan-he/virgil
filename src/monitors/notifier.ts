@@ -76,10 +76,10 @@ export class DiscordNotifier {
   }
 
   /**
-   * Sends an Envoy job alert for a new AI-related position.
+   * Sends a job listing alert.
    */
-  async sendEnvoyJobAlert(message: string): Promise<void> {
-    await this.send(`\uD83D\uDCBC **Envoy Job** — ${message}`);
+  async sendJobAlert(message: string): Promise<void> {
+    await this.send(`\uD83D\uDCBC **Job Alert** — ${message}`);
   }
 
   /**

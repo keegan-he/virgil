@@ -6,75 +6,24 @@
                      \ \    / /   \ \  \ \  \\  \\ \  \|\  \ \  \ \  \____
                       \ \__/ /     \ \__\ \__\\ _\\ \_______\ \__\ \_______\
                        \|__|/       \|__|\|__|\|__|\|_______|\|__|\|_______|
-
-              ┌─────────────────────────────────────────────────────┐
-              │  "I am he who guides you through the dark places."  │
-              │                    — Virgil, The Inferno            │
-              └─────────────────────────────────────────────────────┘
 ```
 
-**Your personal AI agent.** Always on. Always watching. Lives in Discord. Thinks with two brains. Doesn't need a data center to do it.
-
-Named after the guide in Dante's *Divine Comedy* — because every journey through the circles of modern AI infrastructure needs a steady hand.
+A personal AI agent framework that routes conversations between a local model (Ollama) and a cloud model (Claude CLI). ~2,500 lines of TypeScript, one SQLite database.
 
 ---
 
-## The pitch
+## Overview
 
-Virgil routes conversations between a fast local model (Ollama) and a cloud model (Claude). Simple stuff stays local. Hard stuff goes to the cloud. You never pick which model to use — Virgil figures it out. If the local model goes down, Claude catches everything. No config change, no restart, no panic.
+Virgil is a gateway-based agent that accepts messages from Discord or a console REPL, classifies them, and dispatches them to the appropriate backend. Simple messages are handled locally by Ollama; complex messages are routed to Claude via its CLI subprocess. If Ollama is unavailable, all traffic fails over to Claude automatically.
 
-~2,500 lines of TypeScript. One SQLite database. `npm install && npm run dev`. That's it. No Docker, no Kubernetes, no "please configure your NVIDIA runtime." Just a Node.js process on your laptop that happens to be smarter than it looks.
+### Key capabilities
 
----
-
-## What it does
-
-- **Discord bot** — threaded conversations, slash commands, typing indicators, smart message splitting that won't butcher your code fences
-- **Dual-brain routing** — Ollama for speed, Claude for depth, automatic failover at every layer
-- **Background monitors** — Spotify metrics, 1001Tracklists, daily briefings with weather and GitHub activity. Zero API keys. Seriously — it scrapes public pages like Dante wandered through Hell: methodically.
-- **9 built-in skills** — file ops (path-traversal-safe), web fetching, system monitoring, whitelisted shell commands
-- **Persistent memory** — SQLite with automatic context compaction. When conversations get long, Virgil summarizes the old stuff so it doesn't forget where you left off. Like a guide who actually remembers which circle you're in.
-- **Heartbeat monitor** — pings backends every 30s, reroutes traffic on failure, logs everything
-
----
-
-## Lineage
-
-Virgil's architecture has two parents:
-
-### From [OpenClaw](https://github.com/openclaw/openclaw): the gateway pattern
-
-OpenClaw proved that a gateway-centric message bus — normalize input from any channel, route through an agent, dispatch back — is the right architecture for personal AI agents. Virgil inherits this wholesale: a central Gateway that doesn't care where messages come from, unified message types, modular skills, per-user session isolation, and event-driven observability.
-
-OpenClaw connects to 24+ messaging platforms and runs a full plugin ecosystem. Virgil connects to Discord and a terminal. Sometimes the ninth circle is just one channel deep.
-
-### From [NemoClaw](https://github.com/NVIDIA/NemoClaw): the security philosophy
-
-NemoClaw wraps OpenClaw in NVIDIA's OpenShell sandbox — Landlock, seccomp, network namespaces, credential stripping, inference proxying. Enterprise-grade. Also enterprise-weight.
-
-Virgil distills the same principles into application-level guardrails:
-- **Path traversal protection** — every file op resolves against a base dir. `../../../etc/passwd` gets you a polite rejection, not your secrets.
-- **Command whitelisting** — 20 safe commands via `execFile()`. No shell string eval. No injection. The agent runs `ls`, not `rm -rf /`.
-- **Process isolation** — Claude runs as a subprocess with `cwd` set to `$HOME`. It can't read its own source, config, or `.env`. Virgil doesn't trust Virgil with Virgil's keys.
-- **Credential separation** — secrets live in environment variables, never in agent-accessible state. All inference flows through the Gateway.
-
-Same philosophy. No Docker. No GPU. No vendor lock-in.
-
-### No NVIDIA hardware required
-
-NemoClaw needs OpenShell, Linux containers, and `nvidia/nemotron-3-super-120b-a12b` on NVIDIA endpoints. Virgil runs Ollama on whatever you've got — Apple Silicon, Intel, AMD, CPU-only. A MacBook Air handles `qwen2.5-coder:1.5b` without breaking a sweat. Cloud reasoning goes through Claude's CLI, not a GPU you're renting by the minute.
-
-Dante didn't need a supercomputer to write the *Commedia*. You don't need one to run your agent.
-
-### Why the Claude Agent SDK (Python) shaped the backend
-
-Virgil is TypeScript, but its Claude integration is modeled after the [Claude Agent SDK for Python](https://docs.anthropic.com/en/docs/agents/agent-sdk)'s **SubprocessCLITransport** pattern. Three options existed:
-
-1. **Direct API calls** — you own the tool loop, context management, session state, token counting. A lot of work to get wrong.
-2. **The Python Agent SDK** — spawns `claude` as a subprocess, reads stream-json. The agent loop is battle-tested. You just consume it.
-3. **Virgil's approach** — option 2, reimplemented in ~200 lines of TypeScript. Same subprocess pattern, same streaming protocol, zero Python dependency.
-
-The Python SDK proved that subprocess-based agent integration works. Virgil ported the pattern into the same language as the rest of the stack. The subprocess runs with `cwd` set to `$HOME` (not the project directory), processes are tracked and killed on shutdown, and output is parsed as typed NDJSON. Process-level isolation for free — the simplest way to run an agent safely, and the SDK team figured that out first.
+- **Dual-model routing** — Tier 1 regex fast-path + Tier 2 Ollama-based classification with automatic failover
+- **Discord integration** — threaded conversations, slash commands, typing indicators, code-fence-aware message splitting
+- **9 sandboxed skills** — file ops (path-traversal-safe), web fetching, system info, whitelisted shell commands
+- **Persistent memory** — SQLite (WAL mode) with per-user/per-thread sessions and automatic context compaction
+- **Background monitors** — configurable scheduled scrapers (Spotify, 1001Tracklists, jobs pages, weather, GitHub) with Discord notifications
+- **Heartbeat monitoring** — 30s health checks with state change events and automatic rerouting
 
 ---
 
@@ -92,20 +41,29 @@ The Python SDK proved that subprocess-based agent integration works. Virgil port
     └──┬───┬──┘    └──────────┘
        │   │
    ┌───▼┐ ┌▼────┐  ┌──────────┐
-   │ 🏠 │ │ ☁️  │  │  Skills  │  9 built-in, path-safe, whitelisted
-   │Olla│ │Clau │  └──────────┘
-   │ ma │ │ de  │
+   │Olla│ │Clau │  │  Skills  │  9 built-in, path-safe, whitelisted
+   │ ma │ │ de  │  └──────────┘
    └────┘ └─────┘  ┌──────────┐  ┌──────────┐  ┌──────────┐
                     │Heartbeat │  │  Memory  │  │ Monitors │
                     │  (30s)   │  │ (SQLite) │  │(scheduled│
                     └──────────┘  └──────────┘  └──────────┘
 ```
 
-**Router**: Tier 1 regex fast-path (0ms) catches obvious patterns. Tier 2 Ollama classification (2s timeout) handles the rest. Low confidence, timeout, or Ollama down → Claude. Always errs toward quality.
+**Router**: Regex fast-path (0ms) for obvious patterns. Ollama classification (2s timeout) for everything else. Low confidence (<0.7), timeout, or Ollama unavailable → routes to Claude.
 
-**Memory**: SQLite with WAL mode. Up to 30 recent turns in context. When sessions exceed 40 turns, older history gets summarized by Ollama and pruned. The agent forgets gracefully — unlike most people in the second circle.
+**Memory**: SQLite with WAL mode. Up to 30 recent turns in context. Sessions exceeding 40 turns are compacted — older turns are summarized by Ollama and pruned.
 
-**Monitors**: Spotify (hourly), 1001Tracklists (6h), Envoy jobs (2h), daily briefing (8am). All zero-auth. Rate-limited notifications auto-delivered to your Discord DMs.
+**Monitors**: Configurable scheduled tasks with rate-limited Discord notifications. All scrapers use public pages (no API keys required).
+
+### Design decisions
+
+**Claude integration** is modeled after the [Claude Agent SDK](https://docs.anthropic.com/en/docs/agents/agent-sdk)'s `SubprocessCLITransport` pattern, reimplemented in TypeScript. Claude runs as a subprocess with `--output-format stream-json`, output is parsed as NDJSON. The subprocess runs with `cwd` set to `$HOME` for process-level isolation — it cannot read the project source, config, or `.env`.
+
+**Security model** uses application-level guardrails:
+- Path traversal protection on all file operations and shell command arguments
+- Command whitelist via `execFile()` (no shell string eval)
+- SSRF protection blocking private/loopback/link-local addresses in web fetches
+- Credential separation — secrets in environment variables, never in agent-accessible state
 
 ---
 
@@ -113,34 +71,38 @@ The Python SDK proved that subprocess-based agent integration works. Virgil port
 
 ### Prerequisites
 
-- **Node.js** >= 18 (`nvm use` — `.nvmrc` included)
-- **Ollama** running (`brew install ollama && ollama serve`)
-- **Discord bot token** (optional — console works without one)
+- **Node.js** >= 20 (`nvm use` — `.nvmrc` included)
+- **Ollama** running locally (`brew install ollama && ollama serve`)
+- **Claude CLI** on PATH (authenticated)
+- **Discord bot token** (optional — console mode works without one)
 
 ### Setup
 
 ```bash
-git clone https://github.com/keegan-he/virgil.git
+git clone https://github.com/your-org/virgil.git
 cd virgil
 npm install
 cp .env.example .env          # add your Discord token
 ollama pull qwen2.5-coder:1.5b
 ```
 
-Customize `config/virgil.yaml` for your setup. Edit `config/SOUL.md` to give Virgil a personality — or keep the default one, which is already pretty good at being direct and not wasting your time.
+### Configuration
+
+- `config/virgil.yaml` — runtime config (models, channels, monitors, memory thresholds)
+- `config/SOUL.md` — agent personality and behavioral rules (parsed into system prompt)
 
 ### Run
 
 ```bash
-npm run dev       # development
-npm run build && npm start  # production
+npm run dev                    # development (tsx)
+npm run build && npm start     # production (compiled)
 ```
 
 ### Console commands
 
 - `/status` — backend health
-- `/skills` — list skills
-- `/briefing` — daily briefing on demand
+- `/skills` — list available skills
+- `/briefing` — trigger daily briefing
 
 ---
 
@@ -162,10 +124,3 @@ virgil/
 │   └── virgil.yaml        # Runtime config
 └── data/                  # SQLite + PID lockfile (gitignored)
 ```
-
----
-
-*"Consider your origin; you were not born to live like brutes, but to follow virtue and knowledge."*
-*— Dante, guided by Virgil*
-
-*Also you were not born to mass-provision A100s for a Discord bot. Keep it simple.*

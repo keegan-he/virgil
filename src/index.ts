@@ -27,7 +27,7 @@ import { HeartbeatMonitor } from './heartbeat/monitor.js';
 import { ContextCompactor } from './memory/compaction.js';
 import { SpotifyClient } from './monitors/spotify.js';
 import { TracklistsScraper } from './monitors/tracklists.js';
-import { EnvoyJobsScraper } from './monitors/envoy-jobs.js';
+import { JobsScraper } from './monitors/jobs-monitor.js';
 import { MonitorScheduler, type ScheduledTask } from './monitors/scheduler.js';
 import { DiscordNotifier } from './monitors/notifier.js';
 import { DailyBriefing, BRIEFING_CHECK_INTERVAL_MS } from './monitors/briefing.js';
@@ -326,25 +326,26 @@ async function main(): Promise<void> {
       console.log('1001Tracklists: disabled');
     }
 
-    // Envoy AI jobs monitoring
-    if (config.monitors.envoy_jobs?.enabled) {
-      const envoyConfig = config.monitors.envoy_jobs;
-      const envoyScraper = new EnvoyJobsScraper(envoyConfig);
-      const intervalMs = envoyConfig.check_interval_minutes * 60_000;
+    // Jobs monitoring
+    if (config.monitors.jobs?.enabled) {
+      const jobsConfig = config.monitors.jobs;
+      const jobsScraper = new JobsScraper(jobsConfig);
+      const intervalMs = jobsConfig.check_interval_minutes * 60_000;
+      const monitorName = jobsConfig.name;
 
       tasks.push({
-        name: 'envoy-jobs',
+        name: 'jobs-monitor',
         intervalMs,
         execute: async () => {
-          const aiJobs = await envoyScraper.fetchAIJobs();
+          const matchedJobs = await jobsScraper.fetchMatchingJobs();
           const knownUrls = new Set(
-            store.getKnownEnvoyJobs().map((j) => j.url),
+            store.getKnownJobs().map((j) => j.url),
           );
 
           let newCount = 0;
-          for (const job of aiJobs) {
+          for (const job of matchedJobs) {
             if (!knownUrls.has(job.url)) {
-              store.addEnvoyJob(job);
+              store.addJob(job);
               newCount++;
 
               if (notifier) {
@@ -354,29 +355,28 @@ async function main(): Promise<void> {
                   job.department !== 'Unknown'
                     ? ` [${job.department}]`
                     : '';
-                await notifier.sendEnvoyJobAlert(
-                  `New AI role at Envoy: **${job.title}**${deptStr}${locationStr}\n${job.url}`,
+                await notifier.sendJobAlert(
+                  `New role at ${monitorName}: **${job.title}**${deptStr}${locationStr}\n${job.url}`,
                 );
-                // Mark as notified after sending
                 const added = store
-                  .getKnownEnvoyJobs()
+                  .getKnownJobs()
                   .find((j) => j.url === job.url);
                 if (added) {
-                  store.markEnvoyJobNotified(added.id);
+                  store.markJobNotified(added.id);
                 }
               }
             }
           }
 
           console.log(
-            `  [monitor] Envoy Jobs: found ${aiJobs.length} AI roles, ${newCount} new`,
+            `  [monitor] ${monitorName} Jobs: found ${matchedJobs.length} matches, ${newCount} new`,
           );
         },
       });
 
-      console.log('Envoy Jobs: monitoring enabled');
+      console.log(`Jobs monitor (${monitorName}): enabled`);
     } else {
-      console.log('Envoy Jobs: disabled');
+      console.log('Jobs monitor: disabled');
     }
 
     // Daily briefing
