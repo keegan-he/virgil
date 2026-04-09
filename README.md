@@ -31,7 +31,7 @@ Virgil routes conversations between a fast local model (Ollama) and a cloud mode
 
 - **Discord bot** — threaded conversations, slash commands, typing indicators, smart message splitting that won't butcher your code fences
 - **Dual-brain routing** — Ollama for speed, Claude for depth, automatic failover at every layer
-- **Background monitors** — Spotify metrics, 1001Tracklists DJ support, Envoy job alerts, daily briefings with weather and GitHub activity. Zero API keys. Seriously — it scrapes public pages like Dante wandered through Hell: methodically.
+- **Background monitors** — Spotify metrics, 1001Tracklists, daily briefings with weather and GitHub activity. Zero API keys. Seriously — it scrapes public pages like Dante wandered through Hell: methodically.
 - **9 built-in skills** — file ops (path-traversal-safe), web fetching, system monitoring, whitelisted shell commands
 - **Persistent memory** — SQLite with automatic context compaction. When conversations get long, Virgil summarizes the old stuff so it doesn't forget where you left off. Like a guide who actually remembers which circle you're in.
 - **Heartbeat monitor** — pings backends every 30s, reroutes traffic on failure, logs everything
