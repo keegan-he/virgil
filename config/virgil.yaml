@@ -35,16 +35,18 @@ memory:
 
 monitors:
   spotify:
-    enabled: true
-    artist_id: "0WfLdHPmUE4Kl3iftC8U2y"
+    enabled: false
+    artist_id: "your_spotify_artist_id_here"
     interval_ms: 3600000            # 1 hour
   tracklists:
-    enabled: true
-    artist_url: "https://www.1001tracklists.com/dj/verbala/index.html"
+    enabled: false
+    artist_url: "https://www.1001tracklists.com/dj/your-artist/index.html"
     rate_limit_ms: 5000
     interval_ms: 21600000           # 6 hours
-  envoy_jobs:
-    enabled: true
+  jobs:
+    enabled: false
+    name: "Your Company"            # used in logs and notifications
+    jobs_url: "https://example.com/careers"
     check_interval_minutes: 120     # every 2 hours
     keywords:
       - "AI"
@@ -70,7 +72,7 @@ monitors:
     timezone: America/Los_Angeles   # Pacific Time
     weather:
       enabled: true
-      location: "Dogpatch,San Francisco"
+      location: "Your City"
       units: imperial
     github:
       enabled: true                 # Uses gh CLI — no token needed

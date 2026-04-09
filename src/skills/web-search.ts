@@ -39,6 +39,11 @@ export const webFetch: Skill = {
       return { success: false, output: `Unsupported protocol: ${parsed.protocol}` };
     }
 
+    // Block requests to private/internal networks (SSRF protection)
+    if (isPrivateHost(parsed.hostname)) {
+      return { success: false, output: `Blocked: "${parsed.hostname}" resolves to a private/internal address` };
+    }
+
     try {
       const response = await fetch(url, {
         headers: {
@@ -87,6 +92,39 @@ export const webFetch: Skill = {
     }
   },
 };
+
+/**
+ * Checks if a hostname points to a private, loopback, or link-local address.
+ * Blocks SSRF attacks against internal network services.
+ */
+function isPrivateHost(hostname: string): boolean {
+  const lower = hostname.toLowerCase();
+
+  // Block obvious private hostnames
+  if (lower === 'localhost' || lower === '0.0.0.0' || lower === '[::1]') {
+    return true;
+  }
+
+  // Check if the hostname is an IP address in a private range
+  const parts = hostname.split('.').map(Number);
+  if (parts.length === 4 && parts.every((n) => !isNaN(n) && n >= 0 && n <= 255)) {
+    const [a, b] = parts;
+    // 127.0.0.0/8 — loopback
+    if (a === 127) return true;
+    // 10.0.0.0/8 — private
+    if (a === 10) return true;
+    // 172.16.0.0/12 — private
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    // 192.168.0.0/16 — private
+    if (a === 192 && b === 168) return true;
+    // 169.254.0.0/16 — link-local
+    if (a === 169 && b === 254) return true;
+    // 0.0.0.0/8
+    if (a === 0) return true;
+  }
+
+  return false;
+}
 
 /**
  * Strips HTML tags and collapses whitespace for a rough text extraction.

@@ -9,7 +9,7 @@
 
 export interface WeatherConfig {
   enabled: boolean;
-  /** Location string, e.g. "Dogpatch,SF" or "San Francisco" */
+  /** Location string, e.g. "San Francisco" or "London" */
   location: string;
   units: 'imperial' | 'metric';
 }

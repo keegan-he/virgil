@@ -195,7 +195,7 @@ export class DailyBriefing {
 
     // Assemble the message
     const lines: string[] = [
-      `# ${greeting}, Keegan`,
+      `# ${greeting}`,
       `*${dateFormatted}*`,
       '',
     ];
@@ -237,7 +237,7 @@ export class DailyBriefing {
       const history = this.store.getArtistMetricsHistory(this.spotifyArtistId, 'spotify', 2);
 
       const lines: string[] = [
-        `🎵 **Verbala on Spotify**`,
+        `🎵 **${artist.name} on Spotify**`,
         `   Followers: **${artist.followers.total.toLocaleString()}**`,
       ];
 

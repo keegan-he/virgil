@@ -68,7 +68,7 @@ export class SpotifyClient {
 
   private parseArtistPage(html: string, artistId: string): SpotifyArtist {
     // Default values in case parsing fails partially
-    let name = 'Verbala';
+    let name = 'Unknown Artist';
     let followers = 0;
     let monthlyListeners: number | null = null;
     let popularity = 0;

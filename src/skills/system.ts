@@ -7,6 +7,7 @@
 
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { resolve } from 'node:path';
 import { freemem, totalmem, cpus, uptime, hostname, platform, arch } from 'node:os';
 import type { Skill, SkillInput, SkillResult } from './registry.js';
 
@@ -16,8 +17,33 @@ const execFileAsync = promisify(execFile);
 const SAFE_COMMANDS = new Set([
   'ls', 'cat', 'head', 'tail', 'wc', 'find', 'grep', 'which',
   'date', 'uptime', 'whoami', 'hostname', 'df', 'du', 'ps',
-  'echo', 'env', 'pwd', 'uname',
+  'echo', 'pwd', 'uname',
 ]);
+
+/** Commands that accept file/directory path arguments */
+const PATH_COMMANDS = new Set([
+  'ls', 'cat', 'head', 'tail', 'find', 'grep', 'du', 'wc',
+]);
+
+/**
+ * Validates that all path-like arguments resolve within the allowed base directory.
+ * Prevents shell-exec from bypassing the file-ops sandbox.
+ */
+function validateArgs(cmd: string, args: string[], baseDir: string): void {
+  if (!PATH_COMMANDS.has(cmd)) return;
+
+  for (const arg of args) {
+    // Skip flags
+    if (arg.startsWith('-')) continue;
+    // Skip grep patterns (non-path arguments) — grep's first non-flag arg is a pattern
+    if (cmd === 'grep' && !arg.includes('/') && !arg.startsWith('.')) continue;
+
+    const resolved = resolve(baseDir, arg);
+    if (!resolved.startsWith(resolve(baseDir))) {
+      throw new Error(`Path "${arg}" is outside the allowed directory`);
+    }
+  }
+}
 
 /** Max command execution time */
 const EXEC_TIMEOUT_MS = 10_000;
@@ -142,10 +168,22 @@ export const shellExec: Skill = {
       };
     }
 
+    // Validate path arguments stay within cwd
+    const baseDir = process.cwd();
+    try {
+      validateArgs(cmd, args, baseDir);
+    } catch (err) {
+      return {
+        success: false,
+        output: err instanceof Error ? err.message : String(err),
+      };
+    }
+
     try {
       const { stdout, stderr } = await execFileAsync(cmd, args, {
         timeout: EXEC_TIMEOUT_MS,
         maxBuffer: 512_000,
+        cwd: baseDir,
       });
 
       const output = stdout + (stderr ? `\nSTDERR: ${stderr}` : '');
