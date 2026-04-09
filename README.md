@@ -27,6 +27,70 @@ Virgil is a gateway-based agent that accepts messages from Discord or a console 
 
 ---
 
+## Capabilities
+
+### Conversation routing
+
+Messages are classified and routed automatically. Simple exchanges stay on the local model; anything requiring reasoning, code, or tool use goes to Claude.
+
+```
+you> hey, what's up?
+  [route] → ollama (0.95) [fast-path] Greeting detected
+virgil> Hey! All good here. What are you working on?
+
+you> can you review this function and suggest improvements?
+  [route] → claude (0.95) [fast-path] Complex analysis detected
+virgil> Looking at the function, there are a few things...
+```
+
+### Discord integration
+
+Supports DMs, server channels, and threaded conversations. Slash commands provide direct access to agent features.
+
+```
+/ask prompt: What's the difference between a mutex and a semaphore?
+/status
+/skill name: file-read args: config/virgil.yaml
+/skill name: list
+```
+
+### Skills
+
+Nine built-in skills, all sandboxed. File operations enforce path traversal protection. Shell commands run against a whitelist via `execFile()` (no shell eval).
+
+| Skill | Description |
+|-------|-------------|
+| `file-read` | Read a file's contents (max 1MB) |
+| `file-write` | Create or overwrite a file |
+| `file-search` | Recursive filename search (max depth 6, max 50 results) |
+| `file-list` | List directory contents |
+| `web-fetch` | Fetch URL content with SSRF protection |
+| `system-info` | Host CPU, memory, and uptime |
+| `process-list` | Running processes sorted by CPU/memory |
+| `shell-exec` | Run whitelisted commands (`ls`, `grep`, `wc`, `df`, etc.) |
+| `disk-usage` | Disk space summary |
+
+### Background monitors
+
+Configurable scheduled scrapers that run independently and deliver notifications via Discord DM. All use public pages — no API keys required.
+
+| Monitor | Default interval | Description |
+|---------|-----------------|-------------|
+| Spotify | 1h | Track follower count, monthly listeners, popularity changes |
+| 1001Tracklists | 6h | Detect new DJ support for tracked artists |
+| Jobs | 2h | Scrape any careers page for keyword-matched listings |
+| Daily briefing | Once daily | Weather, GitHub notifications, Spotify stats, DJ support digest |
+
+### Context management
+
+Conversations persist across messages in SQLite. When a session exceeds 40 turns, older history is summarized by Ollama and pruned — keeping context windows manageable without losing important information.
+
+```
+  [compaction] session=abc123 summarized=28 pruned=26
+```
+
+---
+
 ## Architecture
 
 ```
