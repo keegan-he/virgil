@@ -12,6 +12,28 @@ A personal AI agent framework that routes conversations between a local model (O
 
 ---
 
+## In action
+
+<p align="center">
+  <img src="assets/screenshots/self-intro.png" alt="Virgil introducing itself over Discord" width="720" />
+  <br />
+  <em>Self-introduction over Discord — hybrid routing, persistent memory, always-on.</em>
+</p>
+
+<p align="center">
+  <img src="assets/screenshots/architecture.png" alt="Virgil explaining its own architecture" width="720" />
+  <br />
+  <em>Virgil describing its own architecture and core traits.</em>
+</p>
+
+<p align="center">
+  <img src="assets/screenshots/fun-facts.png" alt="Virgil responding with a light mix of facts" width="720" />
+  <br />
+  <em>Open-ended query routed to Claude — rich markdown renders natively in Discord.</em>
+</p>
+
+---
+
 ## Overview
 
 Virgil is a gateway-based agent that accepts messages from Discord or a console REPL, classifies them, and dispatches them to the appropriate backend. Simple messages are handled locally by Ollama; complex messages are routed to Claude via its CLI subprocess. If Ollama is unavailable, all traffic fails over to Claude automatically.
