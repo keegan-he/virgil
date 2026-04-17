@@ -8,7 +8,7 @@
                        \|__|/       \|__|\|__|\|__|\|_______|\|__|\|_______|
 ```
 
-A personal AI agent framework that routes conversations between a local model (Ollama) and a cloud model (Claude CLI). ~2,500 lines of TypeScript, one SQLite database.
+A personal AI agent framework that routes conversations between a local model (Ollama) and a cloud model (Claude CLI). ~6,000 lines of TypeScript, one SQLite database.
 
 ---
 
